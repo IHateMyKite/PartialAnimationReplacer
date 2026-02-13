@@ -20,30 +20,30 @@ void ReplacerManager::EvaluateReplacers()
 	for (const auto& actor : actors) {
 		FindReplacersForActor(actor, *replacers);
 	}
-	
+
 	replacers = _current.exchange(replacers);
 }
 
 // Helper function to test for common bones
 // The point is: no std::string copy, linear time
 bool HaveCommonElements(
-    const BoneSet& set1,
-    const BoneSet& set2)
+	const BoneSet& set1,
+	const BoneSet& set2)
 {
-    auto it1 = set1.begin();
-    auto it2 = set2.begin();
+	auto it1 = set1.begin();
+	auto it2 = set2.begin();
 	// take advantage of std::sets being sorted structures
-    while (it1 != set1.end() && it2 != set2.end()) {
-        const std::string& s1 = it1->get();
-        const std::string& s2 = it2->get();
-        if (s1 == s2)
-            return true;
-        if (s1 < s2)
-            ++it1;
-        else
-            ++it2;
-    }
-    return false;
+	while (it1 != set1.end() && it2 != set2.end()) {
+		const std::string& s1 = it1->get();
+		const std::string& s2 = it2->get();
+		if (s1 == s2)
+			return true;
+		if (s1 < s2)
+			++it1;
+		else
+			++it2;
+	}
+	return false;
 }
 
 // Evaluates conditions on actor `a_actor` and inserts applicable replacers in `a_map`
@@ -64,29 +64,31 @@ void ReplacerManager::FindReplacersForActor(RE::Actor* a_actor, ReplacerMap& a_m
 	}
 }
 
-void ReplacerManager::ApplyReplacers(RE::NiAVObject* a_playerObj)
+void ReplacerManager::ApplyReplacers()
 {
 	if (!_enabled)
 		return;
 
 	const auto replacers = _current.load();
 
-	// apply to player
-	ApplyReplacersToActor(replacers, 0x14, a_playerObj);
+	auto* a_playerObj = RE::PlayerCharacter::GetSingleton()->Get3D(false);
 
-	RE::NiUpdateData updateData{
-		0.f,
-		RE::NiUpdateData::Flag::kNone
-	};
+	if (a_playerObj) {
+		ApplyReplacersToActor(replacers, 0x14, a_playerObj);
+	}
 
 	// apply to NPCs
-	RE::ProcessLists::GetSingleton()->ForEachHighActor([&replacers, &updateData](RE::Actor* a_actor) {
+	RE::ProcessLists::GetSingleton()->ForEachHighActor([&replacers](RE::Actor* a_actor) {
 		if (const auto obj = a_actor->Get3D(false)) {
 			if (ApplyReplacersToActor(replacers, a_actor->GetFormID(), obj)) {
+				RE::NiUpdateData updateData{
+					0.f,
+					RE::NiUpdateData::Flag::kNone
+				};
 				obj->Update(updateData);
 			}
 		}
-		
+
 		return RE::BSContainer::ForEachResult::kContinue;
 	});
 }
@@ -143,7 +145,7 @@ void ReplacerManager::LoadDir(const fs::directory_entry& a_dir)
 bool ReplacerManager::ReloadFile(const fs::directory_entry& a_file)
 {
 	std::unique_lock lock{ _mutex };  // prevent read/writes from replacers
-	
+
 	// invalidate current replacers
 	auto replacers = std::make_shared<ReplacerMap>();
 	replacers = _current.exchange(replacers);

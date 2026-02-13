@@ -13,7 +13,7 @@ namespace PAR
 		
 		static bool ReloadFile(const fs::directory_entry& a_file);
 
-		static void ApplyReplacers(RE::NiAVObject* a_playerObj);
+		static void ApplyReplacers();
 		static void EvaluateReplacers();
 
 		static void SetEnabled(bool a_enabled) { _enabled = a_enabled; }

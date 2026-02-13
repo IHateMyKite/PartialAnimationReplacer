@@ -1,3 +1,4 @@
+#include "./smp/HDTPatches.h"
 #include "Hooks.h"
 #include "Papyrus.h"
 #include "ReplacerManager.h"
@@ -28,11 +29,11 @@ void InitializeLog([[maybe_unused]] spdlog::level::level_enum a_level = spdlog::
 	spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%t] [%s:%#] %v");
 }
 
-
 void Listener(SKSE::MessagingInterface::Message* message) noexcept
 {
 	if (message->type == SKSE::MessagingInterface::kDataLoaded) {
 		ReplacerManager::Init();
+		CreateOrUpdateSystemHook ::Install();
 	}
 }
 
@@ -41,6 +42,8 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 	InitializeLog();
 	logger::info("Loaded plugin {} {}", Plugin::NAME, Plugin::VERSION.string());
 	SKSE::Init(a_skse);
+
+	SKSE::GetTrampoline().create(32);
 
 	Hooks::Install();
 

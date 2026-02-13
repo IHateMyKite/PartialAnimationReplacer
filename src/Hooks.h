@@ -1,5 +1,4 @@
 #pragma once
-
 namespace PAR
 {
 	class Hooks
@@ -8,8 +7,8 @@ namespace PAR
 		static void Install();
 
 	private:
-		static void UpdatePlayer(RE::Actor* a_actor, float a_delta);
-		static inline REL::Relocation<decltype(UpdatePlayer)> _UpdatePlayer;
+		static void OnFrameUpdate(RE::PlayerCharacter* a_this);
+		static inline REL::Relocation<decltype(OnFrameUpdate)> _OnFrameUpdate;
 
 		static inline float _lastUpdated = 0.f;
 		static inline bool _loaded = false;
