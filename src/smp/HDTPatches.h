@@ -77,33 +77,57 @@ namespace CreateOrUpdateSystemHook
 		void* retPtr, void* thisPtr, void* skeleton, void* model, void* file,
 		void* renameMap, void* oldSystem)
 	{
-		if (skeleton) {
-			RE::NiNode* skelNode = static_cast<RE::NiNode*>(skeleton);
-			if (skelNode) {
-				auto ref = skelNode->GetUserData();
-				if (auto actor = ref ? ref->As<RE::Actor>() : nullptr) {
-					auto havokSkel = BoneReset::GetAnimationSkeleton(actor);
-					if (havokSkel) {
-						for (int32_t i = 0; i < havokSkel->bones.size(); ++i) {
-							RE::BSFixedString boneName(havokSkel->bones[i].name.data());
-							auto boneNode = skelNode->GetObjectByName(boneName);
-							if (!boneNode)
-								continue;
+		struct SavedTransform
+		{
+			RE::NiAVObject* node;
+			RE::NiTransform transform;
+		};
 
-							RE::hkQsTransform refPose;
-							if (BoneReset::GetReferencePoseByIndex(havokSkel, i, refPose)) {
-								boneNode->local = BoneReset::HkQsTransformToNiTransform(refPose);
+		std::vector<SavedTransform> savedTransforms;
+
+		if (skeleton && !oldSystem && file) {
+			size_t pathLen = *reinterpret_cast<size_t*>((uintptr_t)file + 0x10);
+			if (pathLen > 0) {
+				RE::NiNode* skelNode = static_cast<RE::NiNode*>(skeleton);
+				if (skelNode) {
+					auto ref = skelNode->GetUserData();
+					if (auto actor = ref ? ref->As<RE::Actor>() : nullptr) {
+						auto havokSkel = BoneReset::GetAnimationSkeleton(actor);
+						if (havokSkel) {
+							for (int32_t i = 0; i < havokSkel->bones.size(); ++i) {
+								RE::BSFixedString boneName(havokSkel->bones[i].name.data());
+								auto boneNode = skelNode->GetObjectByName(boneName);
+								if (!boneNode)
+									continue;
+
+								savedTransforms.push_back({ boneNode, boneNode->local });
+
+								RE::hkQsTransform refPose;
+								if (BoneReset::GetReferencePoseByIndex(havokSkel, i, refPose)) {
+									boneNode->local = BoneReset::HkQsTransformToNiTransform(refPose);
+								}
 							}
+							RE::NiUpdateData updateData;
+							skelNode->Update(updateData);
 						}
-						RE::NiUpdateData updateData;
-						skelNode->Update(updateData);
 					}
 				}
 			}
 		}
 
-		return Original_CreateOrUpdateSystem(
+		void* result = Original_CreateOrUpdateSystem(
 			retPtr, thisPtr, skeleton, model, file, renameMap, oldSystem);
+
+		if (!savedTransforms.empty()) {
+			for (auto& saved : savedTransforms) {
+				saved.node->local = saved.transform;
+			}
+			RE::NiNode* skelNode = static_cast<RE::NiNode*>(skeleton);
+			RE::NiUpdateData updateData;
+			skelNode->Update(updateData);
+		}
+
+		return result;
 	}
 
 	void* AllocateCodeNearModule(void* moduleBase, size_t size)
@@ -158,7 +182,7 @@ namespace CreateOrUpdateSystemHook
 			"41 55 "
 			"41 56 "
 			"41 57 "
-			"48 81 EC 70 0B";
+			"48 81 EC ?? ??";
 
 		uintptr_t targetFunc = MemoryHacks::ScanModule("hdtSMP64.dll", sigCreateOrUpdate);
 		if (!targetFunc) {
@@ -207,10 +231,10 @@ namespace CreateOrUpdateSystemHook
 		}
 
 		// Just a note to those who come next. This is just the easiest way to hook... Between versions
-		// Have very different assembly, and this has the potential to maybe work on FLEX even. 
+		// Have very different assembly, and this has the potential to maybe work on FLEX even.
 		SKSE::log::info("[CreateOrUpdate] Found {} call site(s)", callSites.size());
 
-		// Patch each call to go through our island instead 
+		// Patch each call to go through our island instead
 		int hookedCount = 0;
 		for (uintptr_t callAddr : callSites) {
 			int64_t newOffset64 = (int64_t)islandMem - (int64_t)callAddr - 5;
@@ -238,4 +262,4 @@ namespace CreateOrUpdateSystemHook
 		SKSE::log::info("[Faster-SMP] Hooks finished. Hopefully your game isn't fucked.");
 	}
 
-}  // namespace CreateOrUpdateSystemHook
+} 
