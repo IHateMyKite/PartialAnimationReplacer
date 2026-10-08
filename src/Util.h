@@ -6,7 +6,7 @@ namespace PAR::Util
 	using SKSE::stl::report_and_fail;
 	using std::to_underlying;
 
-	const char* ws = " \t\n\r\f\v";
+	static const char* ws = " \t\n\r\f\v";
 
 	inline std::vector<std::string> Split(const std::string& a_str, std::string_view a_delimiter)
 	{
