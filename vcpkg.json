@@ -6,8 +6,6 @@
   "dependencies": [
     "fmt",
     "directxtk",
-    "directxmath",
-    "openvr",
     "rapidcsv",
     "spdlog",
     "xbyak",
